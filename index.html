@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Turbo Birds</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Quicksand', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none;  scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 h-screen overflow-hidden relative selection:bg-blue-100">
+    <div id="root" class="h-full"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- ICONS (Inline SVGs for portability) ---
+        const Icon = ({ path, className, size = 24 }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {path}
+            </svg>
+        );
+        const Icons = {
+            ChevronLeft: (props) => <Icon {...props} path={<><path d="m15 18-6-6 6-6"/></>} />,
+            Globe: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></>} />,
+            X: (props) => <Icon {...props} path={<><path d="M18 6 6 18"/><path d="m6 6 12 12"/></>} />,
+            Play: (props) => <Icon {...props} path={<><polygon points="6 3 20 12 6 21 6 3" fill="currentColor"/></>} />,
+            BookOpen: (props) => <Icon {...props} path={<><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></>} />,
+            Trophy: (props) => <Icon {...props} path={<><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></>} />,
+            Sparkles: (props) => <Icon {...props} path={<><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M9 5h4"/><path d="M18.8 3.1 19.9 6.5"/></>} />,
+            Volume2: (props) => <Icon {...props} path={<><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></>} />,
+            CheckCircle2: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></>} />,
+            Loader2: (props) => <Icon {...props} className={`animate-spin ${props.className}`} path={<><path d="M21 12a9 9 0 1 1-6.219-8.56"/></>} />
+        };
+
+        // --- DATA ---
+        const birdsData = [
+            { id: 1, nameEn: "Peregrine Falcon", nameZh: "游隼", speed: 389, color: "from-blue-600 to-indigo-700", descEn: "I am the fastest animal on earth! I dive like a rocket.", descZh: "我是地球上最快的動物！我俯衝的速度像火箭一樣快。", img: "https://cdn.download.ams.birds.cornell.edu/api/v1/asset/303618951/1800" },
+            { id: 2, nameEn: "Golden Eagle", nameZh: "金雕", speed: 322, color: "from-amber-500 to-yellow-700", descEn: "I have huge wings and sharp claws to catch food.", descZh: "我有巨大有力的翅膀和鋒利的爪子來抓食物。", img: "https://upload.wikimedia.org/wikipedia/commons/3/35/Golden_Eagle_flying.jpg" },
+            { id: 3, nameEn: "Saker Falcon", nameZh: "獵隼", speed: 320, color: "from-orange-400 to-orange-700", descEn: "I love flying fast across open grasslands.", descZh: "我喜歡在開闊的草原上飛快地飛翔。", img: "https://upload.wikimedia.org/wikipedia/commons/a/a1/Saker_Falcon_profile_shot.jpg" },
+            { id: 4, nameEn: "Gyrfalcon", nameZh: "矛隼", speed: 209, color: "from-slate-200 to-slate-400", descEn: "I am the biggest falcon and I live in the snowy north.", descZh: "我是最大的隼，我住在寒冷的雪地北方。", img: "https://upload.wikimedia.org/wikipedia/commons/1/19/Gyrfalcon_%28Falco_rusticolus%29_%286383387039%29.jpg" },
+            { id: 5, nameEn: "Red-tailed Hawk", nameZh: "紅尾鵟", speed: 193, color: "from-red-500 to-red-800", descEn: "Look for my beautiful red tail when I soar!", descZh: "當我在天空翱翔時，看看我美麗的紅色尾巴！", img: "https://upload.wikimedia.org/wikipedia/commons/0/07/Red-tailed_hawk_%2823114%29.jpg" },
+            { id: 6, nameEn: "Needletail Swift", nameZh: "針尾雨燕", speed: 169, color: "from-slate-700 to-black", descEn: "I have spiky tail feathers that look like needles.", descZh: "我的尾巴羽毛尖尖的，看起來像針一樣。", img: "https://upload.wikimedia.org/wikipedia/commons/4/4f/White-throated_Needletail.jpg" },
+            { id: 7, nameEn: "Hobby Falcon", nameZh: "燕隼", speed: 160, color: "from-indigo-400 to-purple-700", descEn: "I am small, but I can do amazing tricks in the air!", descZh: "我雖然小，但我在空中會做很厲害的特技喔！", img: "https://upload.wikimedia.org/wikipedia/commons/0/09/Eurasian_Hobby.jpg" },
+            { id: 8, nameEn: "Merganser", nameZh: "紅胸秋沙鴨", speed: 160, color: "from-emerald-500 to-teal-800", descEn: "I have a cool, spiky hairdo on my head!", descZh: "我的頭上有一個帥氣的尖尖髮型！", img: "https://upload.wikimedia.org/wikipedia/commons/1/10/Common_Merganser_%28Mergus_merganser%29.JPG" },
+            { id: 9, nameEn: "Frigatebird", nameZh: "軍艦鳥", speed: 153, color: "from-gray-800 to-slate-900", descEn: "I can puff up my red throat like a balloon!", descZh: "我可以像氣球一樣鼓起我紅色的喉嚨！", img: "https://upload.wikimedia.org/wikipedia/commons/3/3d/Magnificent_frigatebird_%28Fregata_magnificens_rothschildi%29_female_with_open_wings.jpg" },
+            { id: 10, nameEn: "Spur-winged Goose", nameZh: "距翅雁", speed: 142, color: "from-stone-500 to-stone-700", descEn: "I am a very large goose with strong wings.", descZh: "我是一隻非常大、翅膀很強壯的鵝。", img: "https://upload.wikimedia.org/wikipedia/commons/6/68/Spur-winged_goose_%28Plectropterus_gambensis%29.jpg" },
+            { id: 11, nameEn: "Rock Pigeon", nameZh: "原鴿", speed: 140, color: "from-purple-400 to-fuchsia-600", descEn: "You might see me walking around in your city parks.", descZh: "你可能會在城市的公園裡看到我在散步。", img: "https://upload.wikimedia.org/wikipedia/commons/f/fd/Rock_pigeon_or_common_pigeon_%28Columba_livia%29.jpg" },
+            { id: 12, nameEn: "Canvasback", nameZh: "帆背潛鴨", speed: 128, color: "from-red-800 to-rose-900", descEn: "I have a sloping forehead and red eyes.", descZh: "我有斜斜的前額和紅色的眼睛。", img: "https://upload.wikimedia.org/wikipedia/commons/5/55/Canvasback_Ducks_%284286214360%29.jpg" },
+            { id: 13, nameEn: "Albatross", nameZh: "信天翁", speed: 127, color: "from-sky-300 to-sky-600", descEn: "I can glide over the ocean for hours without flapping!", descZh: "我可以在海上滑翔好幾個小時都不用拍翅膀！", img: "https://upload.wikimedia.org/wikipedia/commons/a/ac/Wandering_Albatross-_east_of_the_Tasman_Peninsula.jpg" },
+            { id: 14, nameEn: "Eider", nameZh: "歐絨鴨", speed: 123, color: "from-teal-300 to-teal-500", descEn: "My feathers are super soft and keep me very warm.", descZh: "我的羽毛超級柔軟，讓我感覺非常溫暖。", img: "https://upload.wikimedia.org/wikipedia/commons/9/93/Common_Eider_%2829671831526%29.jpg" },
+            { id: 15, nameEn: "Bald Eagle", nameZh: "白頭海雕", speed: 120, color: "from-blue-900 to-slate-800", descEn: "I have a white head and I am a symbol of freedom.", descZh: "我有一個白色的頭，我是自由的象徵。", img: "https://upload.wikimedia.org/wikipedia/commons/4/4c/Bald_Eagle_in_Flight.JPG" },
+            { id: 16, nameEn: "Common Swift", nameZh: "普通雨燕", speed: 112, color: "from-gray-600 to-gray-800", descEn: "I can eat and even sleep while I am flying!", descZh: "我可以在飛行的時候吃東西，甚至睡覺！", img: "https://upload.wikimedia.org/wikipedia/commons/0/06/Common_Swift_Apus_apus.jpg" },
+            { id: 17, nameEn: "Teal", nameZh: "綠翅鴨", speed: 97, color: "from-green-500 to-green-700", descEn: "I am a very small and speedy duck.", descZh: "我是一隻非常小、速度很快的鴨子。", img: "https://www.allaboutbirds.org/guide/assets/photo/63893391-1280px.jpg" },
+            { id: 18, nameEn: "Hummingbird", nameZh: "蜂鳥", speed: 90, color: "from-pink-400 to-rose-500", descEn: "My wings beat so fast they make a humming sound.", descZh: "我的翅膀拍動得太快了，發出嗡嗡的聲音。", img: "https://upload.wikimedia.org/wikipedia/commons/a/a3/Juvenile_Male_Ruby-throated_Hummingbird.jpg" },
+            { id: 19, nameEn: "Osprey", nameZh: "魚鷹", speed: 80, color: "from-cyan-600 to-cyan-800", descEn: "I am an expert at catching fish from the water.", descZh: "我是從水中抓魚的高手。", img: "https://upload.wikimedia.org/wikipedia/commons/0/0b/Osprey_on_nest.jpg" },
+            { id: 20, nameEn: "Ostrich", nameZh: "駝鳥", speed: 70, color: "from-orange-400 to-orange-600", descEn: "I cannot fly, but I run faster than any other bird!", descZh: "我不會飛，但我跑得比其他任何鳥都快！", img: "https://upload.wikimedia.org/wikipedia/commons/b/be/Common_ostrich.jpg" },
+            { id: 21, nameEn: "Spotted Dove", nameZh: "珠頸斑鳩", speed: 60, color: "from-amber-600 to-stone-600", descEn: "I say 'coo-coo' and have a spotted necklace!", descZh: "我的頸上有像珍珠一樣的斑點，會發出「咕咕」聲！", img: "https://upload.wikimedia.org/wikipedia/commons/6/6d/Spotted_dove_%28Spilopelia_chinensis_suratensis%29.jpg" },
+            { id: 22, nameEn: "Tree Sparrow", nameZh: "麻雀", speed: 40, color: "from-yellow-600 to-amber-700", descEn: "I am small and brown, and I live in the city with you!", descZh: "我又小又啡色，經常在城市裡和你住在一起！", img: "https://upload.wikimedia.org/wikipedia/commons/5/5e/Eurasian_tree_sparrow_at_Tenn%C5%8Dji_Park_in_Osaka%2C_December_2015.jpg" },
+            { id: 23, nameEn: "Magpie Robin", nameZh: "鵲鴝", speed: 35, color: "from-slate-800 to-slate-900", descEn: "I am black and white and I love to sing loud songs.", descZh: "我身穿黑白色的衣服，我最喜歡大聲唱歌。", img: "https://upload.wikimedia.org/wikipedia/commons/2/2c/Oriental_Magpie_Robin_%287141668291%29.jpg" },
+            { id: 24, nameEn: "Red-whiskered Bulbul", nameZh: "紅耳鵯", speed: 30, color: "from-red-600 to-slate-700", descEn: "I have a tall black hat and red cheeks!", descZh: "我戴著高高的黑色帽子，還有紅紅的臉頰！", img: "https://upload.wikimedia.org/wikipedia/commons/5/57/Red-whiskered_Bulbul-web.jpg" },
+        ];
+
+        const speak = (text, lang) => {
+            if (!window.speechSynthesis) return;
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang === 'zh' ? 'zh-HK' : 'en-US'; 
+            utterance.rate = 0.9;
+            window.speechSynthesis.speak(utterance);
+        };
+
+        const LangButton = ({ lang, setLang }) => (
+            <button onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')} className="bg-white/90 backdrop-blur text-slate-800 px-3 py-1.5 rounded-full font-bold shadow-md hover:bg-white border border-slate-200 transition-colors flex items-center gap-2 text-xs sm:text-sm shrink-0">
+                <Icons.Globe size={16} className="text-blue-500" /><span>{lang === 'en' ? '中文' : 'ENG'}</span>
+            </button>
+        );
+
+        const BirdAvatar = ({ bird }) => {
+            const [error, setError] = useState(false);
+            return (
+                <div className="w-full h-full relative overflow-hidden rounded-full border-2 border-white/50 shadow-md bg-slate-200 shrink-0">
+                    {error ? (
+                        <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br ${bird.color}`}>
+                            <span className="text-white font-black text-xl opacity-60">{bird.nameEn.charAt(0)}</span>
+                        </div>
+                    ) : (
+                        <img src={bird.img} alt={bird.nameEn} onError={() => setError(true)} referrerPolicy="no-referrer" className="w-full h-full object-cover transition-opacity duration-500" />
+                    )}
+                </div>
+            );
+        };
+
+        const MenuScreen = ({ setMode, lang, setLang, t }) => (
+            <div className="flex flex-col items-center justify-center h-full space-y-8 animate-in fade-in zoom-in duration-500 relative">
+                <div className="absolute top-4 right-4"><LangButton lang={lang} setLang={setLang} /></div>
+                <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 drop-shadow-sm text-center px-4 leading-tight">{t.title}</h1>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-2xl px-8">
+                    <button onClick={() => setMode('gallery')} className="group relative overflow-hidden bg-white p-8 rounded-[2rem] shadow-xl border-4 border-blue-200 hover:border-blue-400 transition-all transform hover:scale-105">
+                        <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity"><Icons.BookOpen size={80} className="text-blue-500" /></div>
+                        <div className="flex justify-center mb-6"><div className="w-28 h-28"><BirdAvatar bird={birdsData[1]} /></div></div>
+                        <h2 className="text-4xl font-bold text-center text-slate-700">{t.gallery}</h2>
+                    </button>
+                    <button onClick={() => setMode('race')} className="group relative overflow-hidden bg-white p-8 rounded-[2rem] shadow-xl border-4 border-green-200 hover:border-green-400 transition-all transform hover:scale-105">
+                        <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity"><Icons.Trophy size={80} className="text-green-500" /></div>
+                        <div className="flex justify-center mb-6"><div className="w-28 h-28"><BirdAvatar bird={birdsData[0]} /></div></div>
+                        <h2 className="text-4xl font-bold text-center text-slate-700">{t.race}</h2>
+                    </button>
+                </div>
+            </div>
+        );
+
+        const GalleryScreen = ({ setMode, lang, setLang, t }) => {
+            const [selectedBird, setSelectedBird] = useState(null);
+            return (
+                <div className="flex flex-col h-full bg-slate-50">
+                    <div className="sticky top-0 z-30 bg-white/90 backdrop-blur-md shadow-sm px-4 py-2 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => setMode('menu')} className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full font-bold text-sm transition-colors"><Icons.ChevronLeft size={18} /> {t.back}</button>
+                            <h2 className="text-xl font-bold text-slate-800 ml-1">{t.gallery}</h2>
+                        </div>
+                        <LangButton lang={lang} setLang={setLang} />
+                    </div>
+                    <div className="p-2 pb-24 overflow-y-auto">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+                            {birdsData.map((bird) => (
+                                <button key={bird.id} onClick={() => { setSelectedBird(bird); speak(lang === 'en' ? bird.nameEn : bird.nameZh, lang); }} className="relative flex flex-col items-center p-2 rounded-xl shadow-sm border-2 border-white/50 bg-gradient-to-br from-blue-50 to-slate-50 hover:bg-white text-slate-800 transform transition-all hover:scale-105 hover:shadow-lg">
+                                    <div className="w-14 h-14 mb-1"><BirdAvatar bird={bird} /></div>
+                                    <div className="font-bold text-xs text-center leading-tight drop-shadow-sm px-1 w-full line-clamp-2 min-h-[2rem] flex items-center justify-center">{lang === 'en' ? bird.nameEn : bird.nameZh}</div>
+                                    <div className="mt-1 text-[9px] font-bold bg-slate-200/50 px-2 py-0.5 rounded-full">{bird.speed} {t.kmh}</div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    {selectedBird && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in">
+                            <div className="bg-white rounded-[2rem] p-6 max-w-sm w-full relative shadow-2xl text-center border-4 border-white overflow-hidden">
+                                <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
+                                    <LangButton lang={lang} setLang={setLang} />
+                                    <button onClick={() => setSelectedBird(null)} className="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full hover:bg-slate-200 transition-colors shadow-sm"><Icons.X size={20} /></button>
+                                </div>
+                                <div className={`absolute top-0 left-0 w-full h-24 bg-gradient-to-r ${selectedBird.color} opacity-20`}></div>
+                                <div className="flex justify-center mt-4 mb-4 relative"><div className="w-32 h-32 rounded-full shadow-2xl border-4 border-white overflow-hidden"><BirdAvatar bird={selectedBird} /></div></div>
+                                <h2 className="text-2xl font-black text-slate-800 mb-1 leading-tight">{lang === 'en' ? selectedBird.nameEn : selectedBird.nameZh}</h2>
+                                <div className="text-slate-400 font-bold mb-4 uppercase tracking-widest text-xs">Rank #{selectedBird.id}</div>
+                                <div className="bg-blue-50 rounded-xl p-3 mb-4 text-left relative border border-blue-100">
+                                    <div className="flex items-center gap-2 mb-1"><Icons.Sparkles size={14} className="text-blue-500" /><span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">{t.didYouKnow}</span></div>
+                                    <p className="text-slate-700 font-medium text-sm leading-snug">{lang === 'en' ? selectedBird.descEn : selectedBird.descZh}</p>
+                                    <button onClick={(e) => { e.stopPropagation(); speak(lang === 'en' ? selectedBird.descEn : selectedBird.descZh, lang); }} className="mt-2 flex items-center gap-1 bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-full text-xs font-bold transition-colors w-max"><Icons.Volume2 size={14} /> {t.listen}</button>
+                                </div>
+                                <div className="bg-slate-50 rounded-xl p-3 border-2 border-slate-100 flex justify-between items-center">
+                                    <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{t.speed}</span>
+                                    <div className="flex items-baseline gap-1"><span className="text-2xl font-black text-slate-700 tracking-tight">{selectedBird.speed}</span><span className="text-slate-400 font-medium text-xs">{t.kmh}</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const RaceScreen = ({ setMode, lang, setLang, t }) => {
+            const [racers, setRacers] = useState([]);
+            const [showRaceModal, setShowRaceModal] = useState(false);
+            const [racing, setRacing] = useState(false);
+            const [winner, setWinner] = useState(null);
+            const [progress, setProgress] = useState({});
+
+            useEffect(() => {
+                let interval = null;
+                if (racing && !winner && showRaceModal) {
+                    interval = setInterval(() => {
+                        setProgress(prev => {
+                            const newProgress = { ...prev };
+                            let newWinner = null;
+                            racers.forEach(bird => {
+                                if (newProgress[bird.id] >= 100) return;
+                                const move = (bird.speed / 380) * 2 + Math.random() * 0.4;
+                                const next = (newProgress[bird.id] || 0) + move;
+                                if (next >= 100 && !newWinner) { newWinner = bird; newProgress[bird.id] = 100; }
+                                else { newProgress[bird.id] = next; }
+                            });
+                            if (newWinner) { setWinner(newWinner); setRacing(false); }
+                            return newProgress;
+                        });
+                    }, 50);
+                }
+                return () => clearInterval(interval);
+            }, [racing, winner, racers, showRaceModal]);
+
+            const toggleRacer = (bird) => {
+                if (racing) return;
+                if (racers.find(r => r.id === bird.id)) { setRacers(racers.filter(r => r.id !== bird.id)); }
+                else if (racers.length < 5) { setRacers([...racers, bird]); }
+            };
+
+            const startRace = () => { if (racers.length < 2) return; setWinner(null); const resetProg = {}; racers.forEach(r => resetProg[r.id] = 0); setProgress(resetProg); setShowRaceModal(true); setRacing(true); };
+            const resetRace = () => { setRacers([]); setWinner(null); setProgress({}); setRacing(false); setShowRaceModal(false); };
+
+            return (
+                <div className="flex flex-col h-full bg-slate-50">
+                    <div className="sticky top-0 z-30 bg-white/90 backdrop-blur-md shadow-sm px-4 py-2 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => { setMode('menu'); resetRace(); }} className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full font-bold text-sm transition-colors"><Icons.ChevronLeft size={18} /> {t.back}</button>
+                            <div className="flex flex-col leading-none text-center"><span className="text-sm font-bold text-slate-800">{t.selectLabel}</span><span className="text-[10px] text-slate-500 font-medium">{racers.length}/5</span></div>
+                        </div>
+                        <LangButton lang={lang} setLang={setLang} />
+                    </div>
+                    <div className="p-2 pb-24 overflow-y-auto">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+                            {birdsData.map(bird => {
+                                const isSelected = racers.find(r => r.id === bird.id);
+                                const isFull = racers.length >= 5;
+                                const isDisabled = !isSelected && isFull;
+                                return (
+                                    <button key={bird.id} onClick={() => toggleRacer(bird)} disabled={isDisabled} className={`relative flex flex-col items-center p-2 rounded-xl shadow-sm border-2 transition-all ${isSelected ? 'border-green-500 bg-green-50 scale-95 shadow-inner ring-2 ring-green-200' : isDisabled ? 'opacity-40 grayscale border-transparent' : 'border-white bg-white hover:scale-105 hover:shadow-lg'}`}>
+                                        {isSelected && (<div className="absolute top-1 right-1 bg-green-500 text-white rounded-full p-0.5 z-10 animate-in zoom-in"><Icons.CheckCircle2 size={16} /></div>)}
+                                        <div className="w-14 h-14 mb-2"><BirdAvatar bird={bird} /></div>
+                                        <div className="font-bold text-xs text-center leading-tight text-slate-700 line-clamp-2 min-h-[2rem] flex items-center justify-center">{lang === 'en' ? bird.nameEn : bird.nameZh}</div>
+                                        <div className="mt-1 text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{bird.speed} {t.kmh}</div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {racers.length >= 2 && (
+                            <div className="fixed bottom-6 left-0 right-0 flex justify-center z-30 animate-in slide-in-from-bottom-6 pointer-events-none">
+                                <button onClick={startRace} className="pointer-events-auto bg-green-500 hover:bg-green-600 text-white text-3xl font-black py-4 px-12 rounded-full shadow-2xl transform transition active:scale-95 animate-bounce border-4 border-white flex items-center gap-3"><Icons.Play fill="currentColor" /> {t.start}</button>
+                            </div>
+                        )}
+                    </div>
+                    {showRaceModal && (
+                        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
+                            <div className="bg-slate-50/90 backdrop-blur rounded-[2.5rem] w-full max-w-5xl h-full max-h-[85vh] shadow-2xl overflow-hidden flex flex-col border-8 border-white relative">
+                                <div className="flex justify-between items-center p-6 bg-white border-b border-slate-200">
+                                    <h2 className="text-2xl font-black text-slate-700 italic tracking-wider flex items-center gap-2"><Icons.Trophy className="text-yellow-500" /> {t.race}</h2>
+                                    <button onClick={resetRace} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200 transition"><Icons.X size={24} className="text-slate-500" /></button>
+                                </div>
+                                <div className="flex-1 p-2 sm:p-4 overflow-y-auto bg-slate-100 relative">
+                                    {winner && (
+                                        <div className="absolute inset-0 pointer-events-none overflow-hidden flex justify-center z-50">
+                                            {[...Array(30)].map((_, i) => (<div key={i} className="absolute text-3xl animate-bounce" style={{ left: `${Math.random() * 100}%`, animationDuration: `${1 + Math.random()}s`, top: '-20px' }}>🎉</div>))}
+                                        </div>
+                                    )}
+                                    <div className="flex flex-col gap-2 sm:gap-3">
+                                        {racers.map((bird) => (
+                                            <div key={bird.id} className="relative w-full">
+                                                <div className="px-2 mb-0.5 flex justify-between items-end"><span className="font-bold text-slate-700 text-xs sm:text-sm">{lang === 'en' ? bird.nameEn : bird.nameZh}</span></div>
+                                                <div className="h-12 bg-white rounded-full w-full relative flex items-center border border-slate-200 shadow-sm overflow-hidden">
+                                                    <div className="absolute inset-0 opacity-10 flex justify-between px-10"><div className="w-0.5 h-full bg-slate-900 border-l border-dashed border-slate-400"></div><div className="w-0.5 h-full bg-slate-900 border-l border-dashed border-slate-400"></div><div className="w-0.5 h-full bg-slate-900 border-l border-dashed border-slate-400"></div></div>
+                                                    <div className="absolute right-12 h-full w-4 bg-slate-200 flex flex-col justify-center space-y-1 z-0 border-l-2 border-r-2 border-slate-300"><div className="w-full h-1 bg-white"></div><div className="w-full h-1 bg-white"></div><div className="w-full h-1 bg-white"></div><div className="w-full h-1 bg-white"></div></div>
+                                                    <div className="absolute z-10 transition-all duration-75 transform -translate-x-6" style={{ left: `${Math.max(5, progress[bird.id] || 0)}%` }}>
+                                                        <div className="relative group"><div className="w-10 h-10 rounded-full border-2 border-white ring-2 ring-slate-200 bg-slate-200 overflow-hidden shadow-lg"><img src={bird.img} className="w-full h-full object-cover" referrerPolicy="no-referrer" /></div>{winner?.id === bird.id && <span className="absolute -top-8 left-2 text-3xl animate-bounce">👑</span>}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {winner && (
+                                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-30 flex items-center justify-center">
+                                            <div className="bg-white p-8 rounded-[2rem] text-center shadow-2xl animate-in zoom-in duration-300 max-w-sm mx-4">
+                                                <h3 className="text-2xl font-bold text-slate-500 mb-2">{t.winner}</h3>
+                                                <div className="w-40 h-40 mx-auto mb-4 border-8 border-yellow-400 shadow-xl rounded-full overflow-hidden"><img src={winner.img} className="w-full h-full object-cover" referrerPolicy="no-referrer" /></div>
+                                                <div className="text-4xl font-black text-slate-800 leading-tight mb-2">{lang === 'en' ? winner.nameEn : winner.nameZh}</div>
+                                                <div className="text-xl font-bold text-green-600 mb-6 bg-green-50 inline-block px-4 py-1 rounded-full border border-green-100">{winner.speed} {t.kmh}</div>
+                                                <div className="flex gap-3 justify-center">
+                                                    <button onClick={resetRace} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl transition">{t.reset}</button>
+                                                    <button onClick={() => { setWinner(null); const resetProg = {}; racers.forEach(r => resetProg[r.id] = 0); setProgress(resetProg); setRacing(true); }} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-green-200">{t.replay}</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [lang, setLang] = useState('en');
+            const [mode, setMode] = useState('menu');
+            const tMap = {
+                en: { title: "Turbo Birds", gallery: "Learn Birds", race: "Race Mode", back: "Back", speed: "Speed", kmh: "km/h", selectLabel: "Select Racers", selectSub: "(Pick 2-5)", start: "START RACE!", reset: "New Race", replay: "Replay", winner: "Winner!", didYouKnow: "Did you know?", listen: "Listen" },
+                zh: { title: "飛鳥大賽", gallery: "認識飛鳥", race: "比賽模式", back: "返回", speed: "速度", kmh: "公里/小時", selectLabel: "選擇參賽者", selectSub: "(選2-5隻)", start: "開始比賽!", reset: "新比賽", replay: "重賽", winner: "優勝者!", didYouKnow: "你知道嗎？", listen: "聽聽看" }
+            };
+            return (
+                <main className="flex-1 flex flex-col h-full overflow-hidden">
+                    {mode === 'menu' && <MenuScreen setMode={setMode} lang={lang} setLang={setLang} t={tMap[lang]} />}
+                    {mode === 'gallery' && <GalleryScreen setMode={setMode} lang={lang} setLang={setLang} t={tMap[lang]} />}
+                    {mode === 'race' && <RaceScreen setMode={setMode} lang={lang} setLang={setLang} t={tMap[lang]} />}
+                </main>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
