@@ -83,20 +83,43 @@
             </button>
         );
 
-        const BirdAvatar = ({ bird }) => {
+        const BirdAvatar = ({ bird, className }) => {
+            const [loading, setLoading] = useState(true);
             const [error, setError] = useState(false);
+            
             return (
-                <div className="w-full h-full relative overflow-hidden rounded-full border-2 border-white/50 shadow-md bg-slate-200 shrink-0">
-                    {error ? (
+                <div className={`${className} relative overflow-hidden rounded-full border-2 border-white/50 shadow-md bg-slate-200 shrink-0`}>
+                    {loading && !error && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
+                           <Icons.Loader2 className="animate-spin text-slate-400" size={16} />
+                        </div>
+                    )}
+                    {error && (
                         <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br ${bird.color}`}>
                             <span className="text-white font-black text-xl opacity-60">{bird.nameEn.charAt(0)}</span>
                         </div>
-                    ) : (
-                        <img src={bird.img} alt={bird.nameEn} onError={() => setError(true)} referrerPolicy="no-referrer" className="w-full h-full object-cover transition-opacity duration-500" />
+                    )}
+                    {!error && (
+                        <img 
+                            src={bird.img} 
+                            alt={bird.nameEn} 
+                            onLoad={() => setLoading(false)}
+                            onError={() => { setLoading(false); setError(true); }}
+                            referrerPolicy="no-referrer"
+                            className={`w-full h-full object-cover transition-opacity duration-500 ${loading ? 'opacity-0' : 'opacity-100'}`}
+                        />
                     )}
                 </div>
             );
         };
+
+        const Confetti = () => (
+            <div className="absolute inset-0 pointer-events-none overflow-hidden flex justify-center z-50">
+                {[...Array(30)].map((_, i) => (
+                    <div key={i} className="absolute text-3xl animate-bounce" style={{ left: `${Math.random() * 100}%`, animationDuration: `${1 + Math.random()}s`, animationDelay: `${Math.random()}s`, top: '-20px' }}>🎉</div>
+                ))}
+            </div>
+        );
 
         const MenuScreen = ({ setMode, lang, setLang, t }) => (
             <div className="flex flex-col items-center justify-center h-full space-y-8 animate-in fade-in zoom-in duration-500 relative">
@@ -147,8 +170,20 @@
                                     <button onClick={() => setSelectedBird(null)} className="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full hover:bg-slate-200 transition-colors shadow-sm"><Icons.X size={20} /></button>
                                 </div>
                                 <div className={`absolute top-0 left-0 w-full h-24 bg-gradient-to-r ${selectedBird.color} opacity-20`}></div>
-                                <div className="flex justify-center mt-4 mb-4 relative"><div className="w-32 h-32 rounded-full shadow-2xl border-4 border-white overflow-hidden"><BirdAvatar bird={selectedBird} /></div></div>
-                                <h2 className="text-2xl font-black text-slate-800 mb-1 leading-tight">{lang === 'en' ? selectedBird.nameEn : selectedBird.nameZh}</h2>
+                                <div 
+                                    className="flex justify-center mt-4 mb-4 relative cursor-pointer active:scale-95 transition-transform" 
+                                    onClick={() => speak(lang === 'en' ? selectedBird.nameEn : selectedBird.nameZh, lang)}
+                                >
+                                    <div className="w-32 h-32 rounded-full shadow-2xl border-4 border-white overflow-hidden pointer-events-none">
+                                        <BirdAvatar bird={selectedBird} />
+                                    </div>
+                                </div>
+                                <h2 
+                                    className="text-2xl font-black text-slate-800 mb-1 leading-tight cursor-pointer active:text-blue-600 transition-colors"
+                                    onClick={() => speak(lang === 'en' ? selectedBird.nameEn : selectedBird.nameZh, lang)}
+                                >
+                                    {lang === 'en' ? selectedBird.nameEn : selectedBird.nameZh}
+                                </h2>
                                 <div className="text-slate-400 font-bold mb-4 uppercase tracking-widest text-xs">Rank #{selectedBird.id}</div>
                                 <div className="bg-blue-50 rounded-xl p-3 mb-4 text-left relative border border-blue-100">
                                     <div className="flex items-center gap-2 mb-1"><Icons.Sparkles size={14} className="text-blue-500" /><span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider">{t.didYouKnow}</span></div>
@@ -187,13 +222,17 @@
                                 if (next >= 100 && !newWinner) { newWinner = bird; newProgress[bird.id] = 100; }
                                 else { newProgress[bird.id] = next; }
                             });
-                            if (newWinner) { setWinner(newWinner); setRacing(false); }
+                            if (newWinner) { 
+                                setWinner(newWinner); 
+                                setRacing(false);
+                                speak(lang === 'en' ? newWinner.nameEn : newWinner.nameZh, lang);
+                            }
                             return newProgress;
                         });
                     }, 50);
                 }
                 return () => clearInterval(interval);
-            }, [racing, winner, racers, showRaceModal]);
+            }, [racing, winner, racers, showRaceModal, lang]);
 
             const toggleRacer = (bird) => {
                 if (racing) return;
